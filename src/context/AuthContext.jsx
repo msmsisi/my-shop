@@ -1,100 +1,74 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { users as initialUsers } from '../data/users';
+import React, { createContext, useContext, useState } from 'react';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Инициализируем список пользователей из localStorage или используем начальные данные
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('users');
-    return savedUsers ? JSON.parse(savedUsers) : initialUsers;
+    return savedUsers ? JSON.parse(savedUsers) : [
+      {
+        id: 'admin',
+        email: 'admin@test.com',
+        password: 'admin123',
+        name: 'Администратор',
+        isAdmin: true
+      }
+    ];
   });
 
-  const [user, setUser] = useState(() => {
+  const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem('currentUser');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  // Сохраняем пользователей при изменении
-  useEffect(() => {
-    localStorage.setItem('users', JSON.stringify(users));
-  }, [users]);
-
-  // Сохраняем текущего пользователя при изменении
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('currentUser');
-    }
-  }, [user]);
-
   const register = (userData) => {
-    // Проверяем, не существует ли уже пользователь с таким email
-    if (users.some(u => u.email === userData.email)) {
-      throw new Error('Пользователь с таким email уже существует');
-    }
-
-    // Создаем нового пользователя
     const newUser = {
       ...userData,
-      id: Date.now() // Генерируем уникальный ID
+      id: Date.now().toString(),
+      isAdmin: false // По умолчанию новые пользователи не админы
     };
-
-    // Добавляем пользователя в список
-    setUsers([...users, newUser]);
-
-    // Удаляем пароль из данных для текущей сессии
-    const { password, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
+    setUsers(prev => {
+      const updatedUsers = [...prev, newUser];
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+      return updatedUsers;
+    });
+    setCurrentUser(newUser);
+    localStorage.setItem('currentUser', JSON.stringify(newUser));
   };
 
   const login = (email, password) => {
-    const foundUser = users.find(u => 
-      u.email === email && u.password === password
-    );
-
-    if (!foundUser) {
-      throw new Error('Неверный email или пароль');
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) {
+      setCurrentUser(user);
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      return true;
     }
-
-    // Удаляем пароль из данных для текущей сессии
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
+    return false;
   };
 
   const logout = () => {
-    setUser(null);
-  };
-
-  const updateUserProfile = (userId, newData) => {
-    // Обновляем данные в списке пользователей
-    setUsers(users.map(u => 
-      u.id === userId 
-        ? { ...u, ...newData, password: u.password } // Сохраняем существующий пароль
-        : u
-    ));
-
-    // Обновляем данные текущего пользователя
-    if (user?.id === userId) {
-      setUser({ ...user, ...newData });
-    }
+    setCurrentUser(null);
+    localStorage.removeItem('currentUser');
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
+    <AuthContext.Provider value={{
       users,
-      register, 
-      login, 
-      logout,
-      updateUserProfile
+      currentUser,
+      isAuthenticated: !!currentUser,
+      register,
+      login,
+      logout
     }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-} 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth должен использоваться внутри AuthProvider');
+  }
+  return context;
+}; 

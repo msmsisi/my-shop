@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+import { useDispatch } from 'react-redux';
+import { addToCart } from '../store/cartSlice';
 import { products } from '../data/products';
 
 function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const dispatch = useDispatch();
   const [selectedSize, setSelectedSize] = useState('M');
   
   const product = products.find(p => p.id === parseInt(id));
@@ -21,7 +22,7 @@ function ProductPage() {
   }
 
   const handleAddToCart = () => {
-    addToCart({ ...product, size: selectedSize });
+    dispatch(addToCart({ ...product, size: selectedSize }));
   };
 
   return (

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+import { useDispatch } from 'react-redux';
+import { addToCart } from '../store/cartSlice';
 import { useAuth } from '../context/AuthContext';
 import { products } from '../data/products'; // Убедитесь, что у вас есть этот файл
 
 function ProductDetail() {
+  const dispatch = useDispatch();
   const { productId } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
   const { user } = useAuth();
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(5);
@@ -46,8 +47,8 @@ function ProductDetail() {
     );
   }
 
-  const handleAddToCart = () => {
-    addToCart(product);
+  const handleAddToCart = (product) => {
+    dispatch(addToCart(product));
   };
 
   const handleSubmitReview = (e) => {
@@ -105,7 +106,7 @@ function ProductDetail() {
               <p>{product.description}</p>
             </div>
 
-            <button onClick={handleAddToCart} className="add-to-cart-button">
+            <button onClick={() => handleAddToCart(product)} className="add-to-cart-button">
               Добавить в корзину
             </button>
           </div>

@@ -1,52 +1,52 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import ProductCard from '../components/products/ProductCard';
-import ProductFilter from '../components/products/ProductFilter';
-import { products } from '../data/products';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { selectAllProducts } from '../store/productsSlice';
+import { addToCart } from '../store/cartSlice';
+import { useAuth } from '../context/AuthContext';
 
-function Catalog() {
-  const [filteredProducts, setFilteredProducts] = useState(products);
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+const Catalog = () => {
+  const products = useSelector(selectAllProducts);
+  const dispatch = useDispatch();
+  const { currentUser } = useAuth();
 
-  // Получаем уникальные категории из продуктов
-  const categories = [...new Set(products.map(product => product.category))];
-
-  // Используем useCallback для мемоизации функции фильтрации
-  const filterProducts = useCallback(() => {
-    return products.filter(product => {
-      const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
-      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
-  }, [activeCategory, searchQuery]);
-
-  // Обновляем отфильтрованные товары при изменении категории или поискового запроса
-  useEffect(() => {
-    setFilteredProducts(filterProducts());
-  }, [filterProducts]);
+  const handleAddToCart = (product) => {
+    dispatch(addToCart(product));
+  };
 
   return (
-    <div className="catalog-page">
+    <div className="catalog">
       <h2>Каталог товаров</h2>
       
-      <ProductFilter
-        categories={categories}
-        activeCategory={activeCategory}
-        onCategoryChange={setActiveCategory}
-        onSearch={setSearchQuery}
-      />
-
-      <div className="products-grid">
-        {filteredProducts.length > 0 ? (
-          filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))
-        ) : (
-          <p className="no-products">Товары не найдены</p>
-        )}
-      </div>
+      {products.length === 0 ? (
+        <div className="empty-catalog">
+          <p>В каталоге пока нет товаров</p>
+          {currentUser?.isAdmin && (
+            <Link to="/admin" className="add-products-link">
+              Добавить товары
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="products-grid">
+          {products.map(product => (
+            <div key={product.id} className="product-card">
+              <Link to={`/product/${product.id}`} className="product-link">
+                {product.image && (
+                  <img src={product.image} alt={product.name} className="product-image" />
+                )}
+                <h3>{product.name}</h3>
+                <p className="price">{product.price} ₽</p>
+              </Link>
+              <button onClick={() => handleAddToCart(product)} className="add-to-cart">
+                В корзину
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};
 
-export default Catalog; 
+export default Catalog;

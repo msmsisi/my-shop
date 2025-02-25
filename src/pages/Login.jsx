@@ -2,32 +2,22 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-function Login() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-
-    try {
-      await login(formData.email, formData.password);
+    
+    const success = login(email, password);
+    if (success) {
       navigate('/profile');
-    } catch (err) {
-      setError(err.message);
+    } else {
+      setError('Неверный email или пароль');
     }
   };
 
@@ -35,8 +25,6 @@ function Login() {
     <div className="auth-page">
       <div className="auth-container">
         <h1>Вход в аккаунт</h1>
-        
-        {error && <div className="error-message">{error}</div>}
         
         <div className="test-credentials">
           <p>Тестовые данные для входа:</p>
@@ -46,15 +34,16 @@ function Login() {
           </code>
         </div>
         
+        {error && <div className="error-message">{error}</div>}
+        
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
               type="email"
               id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -64,9 +53,8 @@ function Login() {
             <input
               type="password"
               id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
@@ -83,6 +71,6 @@ function Login() {
       </div>
     </div>
   );
-}
+};
 
 export default Login; 

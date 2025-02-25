@@ -1,36 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectCartItems, selectCartTotal, createOrder } from '../store/cartSlice';
 import { useAuth } from '../context/AuthContext';
 
-function Checkout() {
+const Checkout = () => {
   const navigate = useNavigate();
-  const { cart, getCartTotal, createOrder } = useCart();
-  const { user } = useAuth();
-  
+  const dispatch = useDispatch();
+  const { currentUser, isAuthenticated } = useAuth();
+  const cartItems = useSelector(selectCartItems);
+  const total = useSelector(selectCartTotal);
+
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    paymentMethod: 'card',
-    deliveryMethod: 'courier'
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: '',
+    address: '',
+    comment: ''
   });
 
-  const [isProcessing, setIsProcessing] = useState(false);
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      navigate('/cart');
+    }
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [cartItems.length, isAuthenticated, navigate]);
 
-  if (cart.length === 0) {
-    return (
-      <div className="checkout-empty">
-        <h2>Ваша корзина пуста</h2>
-        <button onClick={() => navigate('/catalog')} className="button">
-          Перейти в каталог
-        </button>
-      </div>
-    );
-  }
-
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -38,146 +36,113 @@ function Checkout() {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setIsProcessing(true);
-
-    try {
-      const order = createOrder(formData);
-      navigate('/order-success', { state: { orderId: order.id } });
-    } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Произошла ошибка при оформлении заказа. Пожалуйста, попробуйте снова.');
-    } finally {
-      setIsProcessing(false);
-    }
+    dispatch(createOrder({
+      items: cartItems,
+      total: total,
+      userId: currentUser?.id,
+      date: new Date().toISOString(),
+      deliveryInfo: formData
+    }));
+    navigate('/profile/orders');
   };
+
+  // Если нет товаров или пользователь не авторизован, 
+  // показываем загрузку пока useEffect не выполнит редирект
+  if (cartItems.length === 0 || !isAuthenticated) {
+    return <div className="loading">Загрузка...</div>;
+  }
 
   return (
     <div className="checkout-page">
+      <h2>Оформление заказа</h2>
       <div className="checkout-container">
-        <h1>Оформление заказа</h1>
-
-        <div className="checkout-grid">
-          <div className="checkout-form-container">
-            <form onSubmit={handleSubmit} className="checkout-form">
-              <div className="form-section">
-                <h2>Контактные данные</h2>
-                <div className="form-group">
-                  <label htmlFor="name">Имя</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="email">Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="phone">Телефон</label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-section">
-                <h2>Доставка</h2>
-                <div className="form-group">
-                  <label htmlFor="deliveryMethod">Способ доставки</label>
-                  <select
-                    id="deliveryMethod"
-                    name="deliveryMethod"
-                    value={formData.deliveryMethod}
-                    onChange={handleInputChange}
-                  >
-                    <option value="courier">Курьером</option>
-                    <option value="pickup">Самовывоз</option>
-                    <option value="post">Почтой России</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="address">Адрес доставки</label>
-                  <textarea
-                    id="address"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-section">
-                <h2>Оплата</h2>
-                <div className="form-group">
-                  <label htmlFor="paymentMethod">Способ оплаты</label>
-                  <select
-                    id="paymentMethod"
-                    name="paymentMethod"
-                    value={formData.paymentMethod}
-                    onChange={handleInputChange}
-                  >
-                    <option value="card">Банковской картой</option>
-                    <option value="cash">Наличными при получении</option>
-                  </select>
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                className="submit-order-button"
-                disabled={isProcessing}
-              >
-                {isProcessing ? 'Оформление...' : 'Оформить заказ'}
-              </button>
-            </form>
-          </div>
-
-          <div className="order-summary">
-            <h2>Ваш заказ</h2>
-            <div className="cart-items">
-              {cart.map(item => (
-                <div key={item.cartItemId} className="cart-item-summary">
-                  <div className="item-info">
-                    <span className="item-name">{item.name}</span>
-                    <span className="item-quantity">× {item.quantity}</span>
-                  </div>
-                  <span className="item-price">
-                    {item.price * item.quantity} ₽
-                  </span>
-                </div>
-              ))}
+        <div className="order-summary">
+          <h3>Ваш заказ</h3>
+          {cartItems.map(item => (
+            <div key={item.id} className="checkout-item">
+              <span className="item-name">{item.name}</span>
+              <span className="item-quantity">× {item.quantity}</span>
+              <span className="item-price">{item.price * item.quantity} ₽</span>
             </div>
-            <div className="order-total">
-              <span>Итого:</span>
-              <span className="total-price">{getCartTotal()} ₽</span>
-            </div>
+          ))}
+          <div className="order-total">
+            <strong>Итого:</strong>
+            <span>{total} ₽</span>
           </div>
         </div>
+
+        <form onSubmit={handleSubmit} className="checkout-form">
+          <h3>Данные для доставки</h3>
+          
+          <div className="form-group">
+            <label htmlFor="name">ФИО:</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email:</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="phone">Телефон:</label>
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              required
+              placeholder="+7 (___) ___-__-__"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="address">Адрес доставки:</label>
+            <textarea
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              required
+              placeholder="Город, улица, дом, квартира"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="comment">Комментарий к заказу:</label>
+            <textarea
+              id="comment"
+              name="comment"
+              value={formData.comment}
+              onChange={handleChange}
+              placeholder="Необязательно"
+            />
+          </div>
+
+          <button type="submit" className="submit-order-btn">
+            Оформить заказ
+          </button>
+        </form>
       </div>
     </div>
   );
-}
+};
 
 export default Checkout; 
